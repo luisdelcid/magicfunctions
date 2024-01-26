@@ -37,6 +37,18 @@ function __is_plugin_deactivating($file = ''){
 }
 
 /**
+ * @return array
+ */
+function __mu_plugins(){
+	if(__isset_cache('mu_plugins')){
+		return (array) __get_cache('mu_plugins', []);
+	}
+	$mu_plugins = wp_get_mu_plugins();
+	__set_cache('mu_plugins', $mu_plugins);
+	return $mu_plugins;
+}
+
+/**
  * @return string
  */
 function __plugin_basename($file = ''){
@@ -155,41 +167,42 @@ function __plugin_file($file = ''){
 	}
 	$plugin_dir = wp_normalize_path(WP_PLUGIN_DIR);
 	$mu_plugin_dir = wp_normalize_path(WPMU_PLUGIN_DIR);
-    if(preg_match('#^' . preg_quote($plugin_dir, '#') . '/#', $file)){
-        $dir = $plugin_dir; // File is a plugin.
+    if(preg_match('#^' . preg_quote($plugin_dir, '#') . '/#', $file)){ // File is a plugin.
+        $dir = $plugin_dir;
         $file = preg_replace('#^' . preg_quote($plugin_dir, '#') . '/#', '', $file); // Get relative path from plugins directory.
         $mu_plugin = false;
-    } elseif(preg_match('#^' . preg_quote($mu_plugin_dir, '#') . '/#', $file)){
-        $dir = $mu_plugin_dir; // File is a must-use plugin.
+    } elseif(preg_match('#^' . preg_quote($mu_plugin_dir, '#') . '/#', $file)){ // File is a must-use plugin.
+        $dir = $mu_plugin_dir;
         $file = preg_replace('#^' . preg_quote($mu_plugin_dir, '#') . '/#', '', $file); // Get relative path from must-use plugins directory.
         $mu_plugin = true;
-    } else {
+    } else { // File is not a plugin.
         __set_array_cache('plugin_files', $md5, '');
-		return ''; // File is not a plugin.
+		return '';
     }
 	$file = trim($file, '/');
     $parts = explode('/', $file);
-    if(count($parts) <= 2){
-        /* 1: The entire plugin consists of just a single PHP file, like Hello Dolly. 2: File is the plugin's main file. */
-        if($mu_plugin or __is_plugin_active($file)){
-            /* 1: Plugin is a must-use plugin. 2: Plugin is active. */
+    if(count($parts) <= 2){ // The entire plugin consists of just a single PHP file, like Hello Dolly or file is the plugin's main file.
+        if($mu_plugin or __is_plugin_active($file)){ // Plugin is a must-use plugin or plugin is active.
             $file = $dir . '/' . $file;
             __set_array_cache('plugin_files', $md5, $file);
             return $file;
         }
-        __set_array_cache('plugin_files', $md5, '');
-        return ''; // Plugin is inactive.
+		__set_array_cache('plugin_files', $md5, '');
+		return ''; // Plugin is inactive.
     }
-    if($mu_plugin){
-        /**
-         * WordPress only looks for PHP files right inside the mu-plugins directory, and (unlike for normal plugins) not for files in subdirectories.
-         *
-         * @link https://developer.wordpress.org/advanced-administration/plugins/mu-plugins/#caveats
-         */
+	$dir_path = trailingslashit($parts[0]);
+    if($mu_plugin){ // WordPress only looks for PHP files right inside the mu-plugins directory, and (unlike for normal plugins) not for files in subdirectories.
+		$mu_plugins = __mu_plugins();
+		foreach($mu_plugins as $mu_plugin){
+	        if(str_starts_with($mu_plugin, $dir_path)){
+	            $file = $dir . '/' . $mu_plugin;
+	            __set_array_cache('plugin_files', $md5, $file);
+	            return $file; // Plugin is a must-use plugin.
+	        }
+		}
         __set_array_cache('plugin_files', $md5, '');
-        return ''; // Plugin is a must-use plugin.
+        return ''; // An unexpected error occurred.
     }
-    $dir_path = trailingslashit($parts[0]);
 	$active_plugins = (array) get_option('active_plugins', []);
 	foreach($active_plugins as $active_plugin){
         if(str_starts_with($active_plugin, $dir_path)){
