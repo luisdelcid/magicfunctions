@@ -1,31 +1,39 @@
 <?php
 
 /**
+ * Alias for add_action.
+ *
+ * Differs from add_action in that it will always return a string.
+ *
  * @return string
  */
-function __add_action_idx(...$args){
-    return __on(...$args);
+function __add_action($hook_name = '', $callback = null, $priority = 10, $accepted_args = 1){
+    return __on($hook_name, $callback, $priority, $accepted_args);
 }
 
 /**
  * @return string
  */
-function __add_action_once(...$args){
-    return __one(...$args);
+function __add_action_once($hook_name = '', $callback = null, $priority = 10, $accepted_args = 1){
+    return __one($hook_name, $callback, $priority, $accepted_args);
+}
+
+/**
+ * Alias for add_filter.
+ *
+ * Differs from add_filter in that it will always return a string.
+ *
+ * @return string
+ */
+function __add_filter($hook_name = '', $callback = null, $priority = 10, $accepted_args = 1){
+    return __on($hook_name, $callback, $priority, $accepted_args);
 }
 
 /**
  * @return string
  */
-function __add_filter_idx(...$args){
-    return __on(...$args);
-}
-
-/**
- * @return string
- */
-function __add_filter_once(...$args){
-    return __one(...$args);
+function __add_filter_once($hook_name = '', $callback = null, $priority = 10, $accepted_args = 1){
+    return __one($hook_name, $callback, $priority, $accepted_args);
 }
 
 /**
