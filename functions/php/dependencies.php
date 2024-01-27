@@ -40,9 +40,9 @@ function __enqueue($handle = '', $src = '', $deps = [], $ver = false, $args_medi
 		}
 	} else { // text/css
 		if(is_string($args_media)){
-			$media = $args_media;
+			$media = $args_media; // $media parameter.
 		} else {
-			$media = 'all';
+			$media = 'all'; // All.
 		}
 		wp_enqueue_style($handle, $src, $deps, $ver, $media);
 	}
