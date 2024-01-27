@@ -19,10 +19,15 @@ function __are_plugins_active($plugins = []){
  * @return bool
  */
 function __is_plugin_active($plugin = ''){
+	if(__isset_array_cache('active_plugins', $plugin)){
+		return (bool) __get_array_cache('active_plugins', $plugin, false);
+	}
 	if(!function_exists('is_plugin_active')){
 		require_once(ABSPATH . 'wp-admin/includes/plugin.php');
 	}
-	return is_plugin_active($plugin);
+	$status = is_plugin_active($plugin);
+	__set_array_cache('active_plugins', $plugin, $status);
+    return $status;
 }
 
 /**
@@ -52,8 +57,8 @@ function __mu_plugins(){
  * @return string
  */
 function __plugin_basename($file = ''){
-	if(!$file){
-		$file = __caller_file();
+	if(empty($file)){
+        $file = __backtrace('file');
 	}
 	$plugin_file = __plugin_file($file);
 	if(!$plugin_file){
@@ -66,80 +71,61 @@ function __plugin_basename($file = ''){
  * @return array|WP_Error
  */
 function __plugin_data($file = '', $markup = true, $translate = true){
-    if(!$file){
-		$file = __caller_file();
+	if(empty($file)){
+        $file = __backtrace('file');
 	}
     $plugin_file = __plugin_file($file);
-	if(!$plugin_file){
+	if(empty($plugin_file)){
 		return __error(translate('Plugin not found.'));
 	}
-    $md5 = md5($plugin_file);
-    $key = 'plugin_data_' . $md5;
-    if(__isset_cache($key)){
-        return (array) __get_cache($key, []);
-    }
+    $md5 = __md5([$plugin_file, $markup, $translate]);
+	if(__isset_array_cache('plugin_data', $md5)){
+		return (array) __get_array_cache('plugin_data', $md5, []);
+	}
     if(!function_exists('get_plugin_data')){
         require_once(ABSPATH . 'wp-admin/includes/plugin.php');
     }
     $data = get_plugin_data($plugin_file, $markup, $translate);
-    __set_cache($key, $data);
+	__set_array_cache('plugin_data', $md5, $data);
     return $data;
 }
 
 /**
- * @return string
+ * @return string|WP_Error
  */
-function __plugin_enqueue($filename = '', $deps = [], $in_footer_l10n_media = true){
-	$file = __caller_file();
-	$plugin_file = __plugin_file($file);
+function __plugin_enqueue($file = '', $deps = [], $args_media = null){
+	if(file_exists($file)){
+		$caller_file = $file;
+		$file_exists = true;
+	} else {
+		$caller_file = __backtrace('file');
+		$file_exists = false;
+	}
+	$filename = wp_basename($file);
+	$plugin_file = __plugin_file($caller_file);
 	if(!$plugin_file){
-		return '';
+		return __error(translate('Plugin not found.'));
 	}
 	$mimes = [
 		'css' => 'text/css',
 		'js' => 'application/javascript',
 	];
-	$filename = wp_basename($filename);
 	$filetype = wp_check_filetype($filename, $mimes);
 	if(!$filetype['type']){
-		return '';
+		return __error(translate('Sorry, you are not allowed to upload this file type.'));
 	}
-	$file = plugin_dir_path($file) . $filename; // Relative to the caller file.
-	if(!file_exists($file)){
-		$file = plugin_dir_path($plugin_file) . 'src/' . $filetype['ext'] . '/' . $filename; // Relative to the directory path for the plugin __FILE__.
+	if(!$file_exists){
+		$file = plugin_dir_path($plugin_file) . 'src/' . $filetype['ext'] . '/' . $filename; // Relative to the directory path for the plugin's main file.
 		if(!file_exists($file)){
-			return '';
+			$file = plugin_dir_path($caller_file) . $filename; // Relative to the caller file.
+			if(!file_exists($file)){
+				return __error(translate('File does not exist! Please double check the name and try again.'));
+			}
 		}
 	}
-	$handle = wp_basename($filename, '.' . $filetype['ext']);
-	$handle = __plugin_slug($handle, $plugin_file);
-	$is_script = false;
-	if('application/javascript' === $filetype['type']){
-		$deps[] = __slug('singleton');
-		$in_footer_media = true;
-		$is_script = true;
-		$l10n = [];
-		if(__is_associative_array($in_footer_l10n_media)){
-			$l10n = $in_footer_l10n_media;
-		} else {
-            $in_footer_media = (bool) $in_footer_l10n_media;
-        }
-	} else { // text/css
-		$in_footer_media = 'all';
-		if(is_string($in_footer_l10n_media)){
-			$in_footer_media = $in_footer_l10n_media;
-		}
-	}
-	__local_enqueue($handle, $file, $deps, $in_footer_media);
-    if(!$is_script){
-        return $handle;
-    }
-    if(!$l10n){
-        return $handle;
-    }
-    $object_name = __canonicalize($handle);
-    wp_localize_script($handle, $object_name . '_l10n', $l10n);
-	return $handle;
+	$basename = basename($filename, '.' . $filetype['ext']);
+	$handle = __plugin_slug($basename, $plugin_file);
+	return __local_enqueue($handle, $file, $deps, $args_media);
 }
 
 /**
@@ -191,7 +177,7 @@ function __plugin_file($file = ''){
 		return ''; // Plugin is inactive.
     }
 	$dir_path = trailingslashit($parts[0]);
-    if($mu_plugin){ // WordPress only looks for PHP files right inside the mu-plugins directory, and (unlike for normal plugins) not for files in subdirectories.
+    if($mu_plugin){ // Rarely needed.
 		$mu_plugins = __mu_plugins();
 		foreach($mu_plugins as $mu_plugin){
 	        if(str_starts_with($mu_plugin, $dir_path)){
@@ -224,18 +210,17 @@ function __plugin_file($file = ''){
     return ''; // Plugin is inactive.
 }
 
-// Here...
-
 /**
  * @return string
  */
 function __plugin_folder($file = ''){
-	if(!$file){
-		$file = __caller_file();
+	if(empty($file)){
+        $file = __backtrace('file');
 	}
-	$basename = __plugin_basename($file);
-	if(false === strpos($basename, '/')){
-		return ''; // Ignore. The entire plugin consists of just a single PHP file, like Hello Dolly.
+	$basename = __plugin_basename($file); // The plugin's main file.
+	$parts = explode('/', $basename);
+	if(count($parts) < 2){ // The entire plugin consists of just a single PHP file, like Hello Dolly.
+		return ''; // Ignore.
 	}
 	$parts = explode('/', $basename, 2);
 	return $parts[0];
@@ -245,8 +230,8 @@ function __plugin_folder($file = ''){
  * @return string
  */
 function __plugin_meta($key = '', $file = ''){
-    if(!$file){
-		$file = __caller_file();
+	if(empty($file)){
+        $file = __backtrace('file');
 	}
     $data = __plugin_data($file);
     if(is_wp_error($data)){
@@ -266,8 +251,8 @@ function __plugin_meta($key = '', $file = ''){
  * @return string
  */
 function __plugin_prefix($str = '', $file = ''){
-	if(!$file){
-		$file = __caller_file();
+	if(empty($file)){
+        $file = __backtrace('file');
 	}
 	$plugin_folder = __plugin_folder($file);
 	if(!$plugin_folder){
@@ -280,8 +265,8 @@ function __plugin_prefix($str = '', $file = ''){
  * @return string
  */
 function __plugin_slug($str = '', $file = ''){
-	if(!$file){
-		$file = __caller_file();
+	if(empty($file)){
+        $file = __backtrace('file');
 	}
 	$plugin_folder = __plugin_folder($file);
 	if(!$plugin_folder){
@@ -289,6 +274,12 @@ function __plugin_slug($str = '', $file = ''){
 	}
 	return __str_slug($str, $plugin_folder);
 }
+
+
+
+
+
+
 
 /**
  * @return void
