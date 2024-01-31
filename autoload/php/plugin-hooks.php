@@ -59,7 +59,7 @@ function __did_plugin_filter($hook_name = ''){
 /**
  * @return void
  */
-function do_plugin_action($hook_name = '', ...$arg){
+function __do_plugin_action($hook_name = '', ...$arg){
 	$hook_name = __plugin_hook_name($hook_name);
 	do_action($hook_name, ...$arg);
 }
