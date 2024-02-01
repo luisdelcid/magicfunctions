@@ -22,7 +22,7 @@ function __attachment_url_to_postid($url = ''){
 	if($post_id){
 		return $post_id;
 	}
-	preg_match('/^(.+)(\-\d+x\d+)(\.' . substr($url, strrpos($url, '.') + 1) . ')?$/', $url, $matches); // resized
+	preg_match('/^(.+)(\-\d+x\d+)(\.' . substr($url, strrpos($url, '.') + 1) . ')?$/', $url, $matches); // Resized.
 	if($matches){
 		$url = $matches[1];
 		if(isset($matches[3])){
@@ -33,7 +33,7 @@ function __attachment_url_to_postid($url = ''){
 			return $post_id;
 		}
 	}
-	preg_match('/^(.+)(\-scaled)(\.' . substr($url, strrpos($url, '.') + 1) . ')?$/', $url, $matches); // scaled
+	preg_match('/^(.+)(\-scaled)(\.' . substr($url, strrpos($url, '.') + 1) . ')?$/', $url, $matches); // Scaled.
 	if($matches){
 		$url = $matches[1];
 		if(isset($matches[3])){
@@ -44,7 +44,7 @@ function __attachment_url_to_postid($url = ''){
 			return $post_id;
 		}
 	}
-	preg_match('/^(.+)(\-e\d+)(\.' . substr($url, strrpos($url, '.') + 1) . ')?$/', $url, $matches); // edited
+	preg_match('/^(.+)(\-e\d+)(\.' . substr($url, strrpos($url, '.') + 1) . ')?$/', $url, $matches); // Edited.
 	if($matches){
 		$url = $matches[1];
 		if(isset($matches[3])){
@@ -56,6 +56,26 @@ function __attachment_url_to_postid($url = ''){
 		}
 	}
 	return 0;
+}
+
+/**
+ * @return array
+ */
+function __convert_exts_to_mimes($exts = []){
+    if(empty($exts)){
+        $exts = array_merge(wp_get_audio_extensions(), wp_get_video_extensions(), __image_extensions());
+    }
+    $mimes = wp_get_mime_types();
+    $ext_mimes = [];
+    foreach($exts as $ext){
+        foreach($mimes as $ext_preg => $mime_match){
+            if(preg_match('#' . $ext . '#i', $ext_preg)){
+                $ext_mimes[$ext] = $mime_match;
+                break;
+            }
+        }
+    }
+    return $ext_mimes;
 }
 
 /**
@@ -116,6 +136,14 @@ function __guid_to_postid($guid = '', $check_rewrite_rules = false){
 		return url_to_postid($guid);
 	}
 	return 0;
+}
+
+/**
+ * @return array
+ */
+function __image_extensions(){
+	$image_extensions = ['jpg', 'jpeg', 'jpe', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'ico', 'heic'];
+    return $image_extensions;
 }
 
 /**

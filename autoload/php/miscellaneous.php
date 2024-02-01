@@ -11,6 +11,29 @@ function __absint($maybeint = 0){
 }
 
 /**
+ * @return string
+ */
+function __breadcrumbs($breadcrumbs = [], $separator = '>'){
+    $elements = [];
+    foreach($breadcrumbs as $breadcrumb){
+        if(!isset($breadcrumb['text'])){
+            continue;
+        }
+        $text = $breadcrumb['text'];
+        if(isset($breadcrumb['link'])){
+            $href = $breadcrumb['link'];
+            $target = isset($breadcrumb['target']) ? $breadcrumb['target'] : '_self';
+            $element = sprintf('<a href="%1$s" target="%2$s">%3$s</a>', esc_url($href), esc_attr($target), esc_html($text));
+        } else {
+            $element = sprintf('<span>%1$s</a>', esc_html($text));
+        }
+        $elements[] = $element;
+    }
+    $separator = ' ' . trim($separator) . ' ';
+	return implode($separator, $elements);
+}
+
+/**
  * @return array|null|string
  */
 function __caller($index = 0, $element = ''){
@@ -109,29 +132,6 @@ function __go_to($str = ''){
 }
 
 /**
- * @return string
- */
-function __breadcrumbs($breadcrumbs = [], $separator = '>'){
-    $elements = [];
-    foreach($breadcrumbs as $breadcrumb){
-        if(!isset($breadcrumb['text'])){
-            continue;
-        }
-        $text = $breadcrumb['text'];
-        if(isset($breadcrumb['link'])){
-            $href = $breadcrumb['link'];
-            $target = isset($breadcrumb['target']) ? $breadcrumb['target'] : '_self';
-            $element = sprintf('<a href="%1$s" target="%2$s">%3$s</a>', esc_url($href), esc_attr($target), esc_html($text));
-        } else {
-            $element = sprintf('<span>%1$s</a>', esc_html($text));
-        }
-        $elements[] = $element;
-    }
-    $separator = ' ' . trim($separator) . ' ';
-	return implode($separator, $elements);
-}
-
-/**
  * @return bool
  */
 function __has_btn_class($class = ''){
@@ -141,6 +141,36 @@ function __has_btn_class($class = ''){
 		return !in_array($match, ['btn-block', 'btn-lg', 'btn-sm']);
 	});
 	return (bool) $matches;
+}
+
+/**
+ * @return array
+ */
+function __has_shortcode($content = '', $tag = ''){
+    if(false === strpos($content, '[')){
+        return [];
+    }
+    if(!shortcode_exists($tag)){
+        return [];
+    }
+    preg_match_all('/' . get_shortcode_regex() . '/', $content, $matches, PREG_SET_ORDER);
+    if(!$matches){
+        return [];
+    }
+    foreach($matches as $shortcode){
+        if($tag === $shortcode[2]){
+            return shortcode_parse_atts($shortcode[3]);
+        }
+        if(!$shortcode[5]){
+            continue;
+        }
+        $attr = __has_shortcode($shortcode[5], $tag);
+        if(!$attr){
+            continue;
+        }
+        return $attr;
+    }
+    return [];
 }
 
 /**
