@@ -5,6 +5,13 @@
 /**
  * @return string
  */
+function __file(){
+    return plugin_dir_path(dirname(dirname(__FILE__))) . 'magicfunctions.php';
+}
+
+/**
+ * @return string
+ */
 function __handle(){
     return 'magic-functions';
 }
