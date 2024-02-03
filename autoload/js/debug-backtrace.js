@@ -59,14 +59,23 @@ function __error_backtrace(error = null){
     }
     var values = stack.split("\n");
     jQuery.each(values, function(index, value){
-        var result = (/(http[s]?:\/\/.*):\d+:\d+/g).exec(value); // Array or null.
-        if(result && 1 < result.length){
-            var fn = value.replace('(' + result[0] + ')', '').trim().replace('at ', '');
+        var result = (/(http[s]?:\/\/.*):(\d+):(\d+)/g).exec(value); // Array or null.
+        if(result && 3 < result.length){
+            var function_name = value.replace('(' + result[0] + ')', '').trim().replace('at ', '');
+            var class_name = function_name.split(".");
+            if(1 < class_name.length){
+                function_name = class_name[1];
+                class_name = class_name[0];
+            } else {
+                function_name = class_name[0];
+                class_name = '';
+            }
             errors.push({
-                class: '',
-                file: '',
-                function: fn,
-        		line: 0,
+                class: class_name,
+                file: result[1].replace(__site_url() + '/', ''),
+                function: function_name,
+                index: result[3],
+        		line: result[2],
                 url: result[1],
             });
         }
